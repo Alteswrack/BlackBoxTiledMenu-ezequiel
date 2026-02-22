@@ -28,6 +28,13 @@ BlackBoxMenu.prototype = {
 
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
+        
+        let origOpen = this.menu.open;
+        this.menu.open = (animate) => origOpen.call(this.menu, false);
+        
+        let origClose = this.menu.close;
+        this.menu.close = (animate) => origClose.call(this.menu, false);
+        
         this.menuManager.addMenu(this.menu);
 
         this.resizer = new ResizeManager.ResizeManager(

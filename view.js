@@ -4,7 +4,6 @@ const DND = imports.ui.dnd;
 const Clutter = imports.gi.Clutter;
 const DNDHandler = imports.dndHandler;
 
-
 var View = function(menu, saveCallback) {
     this._init(menu, saveCallback);
 }
@@ -22,7 +21,7 @@ View.prototype = {
             x_expand: true,
             y_expand: true,
             hscrollbar_policy: St.PolicyType.NEVER,
-            vscrollbar_policy: St.PolicyType.AUTOMATIC //ALWAYS DICE IA
+            vscrollbar_policy: St.PolicyType.AUTOMATIC 
         });
 
         this.tiledPanel = new St.BoxLayout({
@@ -31,27 +30,28 @@ View.prototype = {
             reactive: true,
             x_expand: true,
             y_expand: true,
-            x_align: Clutter.ActorAlign.START, // Evita que las categorías se alejen
+            x_align: Clutter.ActorAlign.START, 
             y_align: Clutter.ActorAlign.START
         });
         
-        let panelFlowLayout = new Clutter.FlowLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
-            column_spacing: 15,
-            row_spacing: 15
-        });
+        let mainGridLayout = new Clutter.GridLayout();
+        mainGridLayout.set_column_spacing(15);
+        mainGridLayout.set_row_spacing(15);
 
-        this.categoriesFlow = new St.Widget({
-            layout_manager: panelFlowLayout,
+        this.categoriesGrid = new St.Widget({
+            layout_manager: mainGridLayout,
             reactive: true,
             x_expand: true,
             y_expand: true,
-            x_align: Clutter.ActorAlign.START, // Evita que las categorías se alejen
+            x_align: Clutter.ActorAlign.START,
             y_align: Clutter.ActorAlign.START
         });
+        
+        // 2 Columnas para las categorías
+        this._patchGrid(this.categoriesGrid, 2);
 
         this.categories = {};
-        this.tiledPanel.add_actor(this.categoriesFlow);
+        this.tiledPanel.add_actor(this.categoriesGrid);
         this.scrollView.add_actor(this.tiledPanel);
         this.mainMenuLayout.add_actor(this.sidePanel);
         this.mainMenuLayout.add(this.scrollView, { expand: true, x_fill: true, y_fill: true });
@@ -61,6 +61,44 @@ View.prototype = {
 
         let iconButton = new St.Button({ style_class: 'sidebar-icon', child: new St.Icon({ icon_name: 'system-shutdown-symbolic', icon_type: St.IconType.SYMBOLIC }) });
         this.sidePanel.add_actor(iconButton);
+    },
+
+    _refreshGrid: function(gridWidget, columns) {
+        let layout = gridWidget.get_layout_manager();
+        let children = gridWidget.get_children();
+        for (let i = 0; i < children.length; i++) {
+            let col = i % columns;
+            let row = Math.floor(i / columns);
+            layout.attach(children[i], col, row, 1, 1);
+        }
+    },
+
+    _patchGrid: function(grid, cols) {
+        let refresh = () => this._refreshGrid(grid, cols);
+
+        let origInsert = grid.insert_child_at_index;
+        grid.insert_child_at_index = function(actor, index) {
+            origInsert.call(grid, actor, index);
+            refresh();
+        };
+
+        let origAdd = grid.add_actor;
+        grid.add_actor = function(actor) {
+            origAdd.call(grid, actor);
+            refresh();
+        };
+
+        let origRemove = grid.remove_actor;
+        grid.remove_actor = function(actor) {
+            origRemove.call(grid, actor);
+            refresh();
+        };
+
+        let origSetChild = grid.set_child_at_index;
+        grid.set_child_at_index = function(actor, index) {
+            origSetChild.call(grid, actor, index);
+            refresh();
+        };
     },
 
     _addTileItem: function(label, iconName, command, categoryName = "General") {
@@ -133,29 +171,29 @@ View.prototype = {
 
         let catLabel = new St.Label({ text: labelText, style_class: 'category-label' });
 
-        let innerFlowLayout = new Clutter.FlowLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
-            column_spacing: 5,
-            row_spacing: 5
-        });
+        let innerGridLayout = new Clutter.GridLayout();
+        innerGridLayout.set_column_spacing(5);
+        innerGridLayout.set_row_spacing(5);
 
         let categoryGrid = new St.Widget({
-            layout_manager: innerFlowLayout,
+            layout_manager: innerGridLayout,
             reactive: true,
             x_expand: true,
             y_expand: true
         });
 
+        // 3 Columnas para los tiles dentro de la categoría
+        this._patchGrid(categoryGrid, 3);
         this.dndHandler.setupCategoryDropTarget(categoryGrid);
 
         categoryCard.add_actor(catLabel);
         categoryCard.add_actor(categoryGrid);
 
-        if (this.addCategoryBtn && this.addCategoryBtn.get_parent() === this.categoriesFlow) {
-            let index = this.categoriesFlow.get_children().indexOf(this.addCategoryBtn);
-            this.categoriesFlow.insert_child_at_index(categoryCard, index);
+        if (this.addCategoryBtn && this.addCategoryBtn.get_parent() === this.categoriesGrid) {
+            let index = this.categoriesGrid.get_children().indexOf(this.addCategoryBtn);
+            this.categoriesGrid.insert_child_at_index(categoryCard, index);
         } else {
-            this.categoriesFlow.add_actor(categoryCard);
+            this.categoriesGrid.add_actor(categoryCard);
         }
 
         return categoryGrid;
@@ -167,8 +205,6 @@ View.prototype = {
             reactive: true,
             can_focus: true,
             track_hover: true,
-            //width: 240,
-            //height: 100,
             x_expand: false,
             y_expand: false,
             x_align: Clutter.ActorAlign.START,
@@ -176,10 +212,7 @@ View.prototype = {
         });
 
         this.addCategoryBtn.set_child(new St.Label({ text: "+ Nueva Categoría" }));
-
         this.dndHandler.setupNewCategoryDropTarget(this.addCategoryBtn);
-
-        this.categoriesFlow.add_actor(this.addCategoryBtn);
-        
+        this.categoriesGrid.add_actor(this.addCategoryBtn);
     }
 };
