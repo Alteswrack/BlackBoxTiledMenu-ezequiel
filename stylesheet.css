@@ -1,0 +1,101 @@
+/* El panel izquierdo (Sidebar) */
+.menu-sidebar-box {
+    background-color: #00000000; /* #000000f2 Gris oscuro */
+    border-right: 1px solid rgba(255, 255, 255, 0.1); /* Línea separadora sutil */
+    padding: 10px;
+    width: 60px; /* Ancho fijo para la barra lateral */
+    spacing: 10px; /* Espacio entre iconos verticales */
+}
+
+/* El panel tiled (tiledMenu) puede que lo tengas que cambiar */ 
+.menu-content-box {
+    background-color: #040a1400; /*#040a14; Gris oscuro */
+    border-right: 1px solid rgba(255, 255, 255, 0.1); 
+    min-width: 250px;
+    min-height: 250px;
+}/* Línea separadora sutil */
+    /* padding: 10px;
+    /* width: 60px; /* Ancho fijo para la barra lateral */
+    /* spacing: 10px; /* Espacio entre iconos verticales */
+
+
+/* Estilo base del Tile */
+.tile-button {
+    /* Usamos la imagen SVG como fondo */
+    background-image: url("bg.svg");
+    /* Aseguramos que la imagen cubra todo el botón */
+    background-size: cover;
+    border-radius: 12px;                /* Bordes redondeados */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Sombreado suave */
+    color: white;                       /* Color del texto */
+    padding: 10px;
+    width: 70px;                       /* Ancho fijo */
+    height: 70px;                      /* Alto fijo */
+    box-shadow: -10px 10px 8px 0px rgba(0, 0, 0, 0.6);
+}
+
+/* Efecto al pasar el mouse: La caja "sube" (sombra más grande) */
+.tile-button:hover {
+    /* podria cambiar el fondo con otro .SVG
+    /* La sombra crece y se hace más difusa para simular altura */
+    box-shadow: -15px 10px 15px 0px rgba(0, 0, 0, 0.7);
+}
+
+/* Estilo del Icono dentro del Tile */
+.tile-icon {
+    icon-size: 48px; /* Icono grande */
+    margin-bottom: 5px;
+    icon-shadow: rgba(0, 0, 0, 0.8) -10px 10px 5px;
+}
+
+/* Estilo del Texto dentro del Tile */
+.tile-label {
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    /* Opcional: Sombra también para el texto */
+    text-shadow: rgba(0, 0, 0, 0.8) -7px 7px 2px;
+}
+
+/* Estilos de Hover del DND */
+.drop-zone-hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+
+/* Estilo de Grid Interno de tiles */
+.category-wrapper {
+    min-width: 240px; /* Define el ancho de cada "bloque" de categoría */
+    min-height: 150px;
+    background-color: rgba(255, 255, 255, 0.02); /* Fondo sutil para diferenciarlas */
+    border-radius: 12px;
+    padding: 10px;
+    margin: 5px;
+}
+
+.category-label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #aaaaaa;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Creacion de Categorias Zone */
+.add-category-zone {
+    min-width: 240px;
+    min-height: 150px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: bold;
+    margin: 5px;
+}
+
+.add-category-zone:hover, 
+.add-category-zone-hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.8);
+}

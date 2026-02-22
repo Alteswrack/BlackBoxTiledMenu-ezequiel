@@ -1,0 +1,16 @@
+{
+    "customMenu-width": {
+        "type": "generic",
+        "default": 800
+    },
+    "customMenu-height": {
+        "type": "generic",
+        "default": 800
+    },
+    
+    "layout-order": {
+        "type": "generic",
+        "default": "[]",
+        "description": "Orden guardado de los tiles"
+    }
+}
