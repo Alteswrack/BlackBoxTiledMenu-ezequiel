@@ -52,9 +52,7 @@ View.prototype = {
             style_class: 'tile-button',
             reactive: true,
             can_focus: true,
-            track_hover: true,
-            width: 70,
-            height: 70
+            track_hover: true            
         });
 
         let box = new St.BoxLayout({ 
