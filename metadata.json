@@ -1,7 +1,7 @@
 {
-    "uuid": "TestingGround@ezequiel",
-    "name": "TestingGround",
-    "description": "Applet de prueba de librerias y funciones",
+    "uuid": "BlackBoxTiledMenu@ezequiel",
+    "name": "Black Box Tiled Menu",
+    "description": "Experimental Tiled Menu for Cinnamon",
     "icon": "blackboxtiledmenu-icon",
     "version": "1.0"
 }

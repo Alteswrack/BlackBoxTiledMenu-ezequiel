@@ -6,13 +6,13 @@ const Util = imports.misc.util;
 const St = imports.gi.St;
 const DND = imports.ui.dnd
 
-const UUID = "TestingGround@ezequiel";
+const UUID = "BlackBoxTiledMenu@ezequiel";
 // Importo la libreria de resize manager usando AppletManager
 const ResizeManager = AppletManager.applets[UUID].resizeManager;
 const View = AppletManager.applets[UUID].view;
 
 //====================================================================
-class Menu_Test extends Applet.TextIconApplet {
+class BlackBoxMenu extends Applet.TextIconApplet {
     constructor(metadata, orientation, panel_height, instance_id) {
         super(orientation, panel_height, instance_id);
                 
@@ -80,5 +80,5 @@ class Menu_Test extends Applet.TextIconApplet {
 }
 
 function main(metadata, orientation, panel_height, instance_id) {
-    return new Menu_Test(metadata, orientation, panel_height, instance_id);
+    return new BlackBoxMenu(metadata, orientation, panel_height, instance_id);
 }
