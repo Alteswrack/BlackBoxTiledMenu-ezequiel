@@ -18,29 +18,45 @@ View.prototype = {
         this.mainMenuLayout = new St.BoxLayout({ vertical: false, style_class: "menu-content-box" });
         this.sidePanel = new St.BoxLayout({ vertical: true, style_class: 'menu-sidebar-box' });
 
-        // Contenedor con scroll para evitar glitches al redimensionar
         this.scrollView = new St.ScrollView({
             x_expand: true,
             y_expand: true,
             hscrollbar_policy: St.PolicyType.NEVER,
-            vscrollbar_policy: St.PolicyType.AUTOMATIC
+            vscrollbar_policy: St.PolicyType.AUTOMATIC //ALWAYS DICE IA
         });
 
-        // El panel principal ahora es vertical para que las categorías no "salten"
         this.tiledPanel = new St.BoxLayout({
             vertical: true,
             style_class: 'tiled-container',
             reactive: true,
             x_expand: true,
-            y_expand: true
+            y_expand: true,
+            x_align: Clutter.ActorAlign.START, // Evita que las categorías se alejen
+            y_align: Clutter.ActorAlign.START
         });
-        this.scrollView.add_actor(this.tiledPanel);
+        
+        let panelFlowLayout = new Clutter.FlowLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
+            column_spacing: 15,
+            row_spacing: 15
+        });
+
+        this.categoriesFlow = new St.Widget({
+            layout_manager: panelFlowLayout,
+            reactive: true,
+            x_expand: true,
+            y_expand: true,
+            x_align: Clutter.ActorAlign.START, // Evita que las categorías se alejen
+            y_align: Clutter.ActorAlign.START
+        });
 
         this.categories = {};
-
+        this.tiledPanel.add_actor(this.categoriesFlow);
+        this.scrollView.add_actor(this.tiledPanel);
         this.mainMenuLayout.add_actor(this.sidePanel);
         this.mainMenuLayout.add(this.scrollView, { expand: true, x_fill: true, y_fill: true });
         this.menu.box.add_actor(this.mainMenuLayout);
+
         this._createAddCategoryZone();
 
         let iconButton = new St.Button({ style_class: 'sidebar-icon', child: new St.Icon({ icon_name: 'system-shutdown-symbolic', icon_type: St.IconType.SYMBOLIC }) });
@@ -106,7 +122,15 @@ View.prototype = {
     },
 
     _addCategory: function(labelText) {
-        let categoryCard = new St.BoxLayout({ vertical: true, style_class: 'category-wrapper' });
+        let categoryCard = new St.BoxLayout({
+            vertical: true,
+            style_class: 'category-wrapper',
+            x_expand: false,
+            y_expand: false,
+            x_align: Clutter.ActorAlign.START,
+            y_align: Clutter.ActorAlign.START
+        });
+
         let catLabel = new St.Label({ text: labelText, style_class: 'category-label' });
 
         let innerFlowLayout = new Clutter.FlowLayout({
@@ -127,11 +151,11 @@ View.prototype = {
         categoryCard.add_actor(catLabel);
         categoryCard.add_actor(categoryGrid);
 
-        if (this.addCategoryBtn && this.addCategoryBtn.get_parent() === this.tiledPanel) {
-            let index = this.tiledPanel.get_children().indexOf(this.addCategoryBtn);
-            this.tiledPanel.insert_child_at_index(categoryCard, index);
+        if (this.addCategoryBtn && this.addCategoryBtn.get_parent() === this.categoriesFlow) {
+            let index = this.categoriesFlow.get_children().indexOf(this.addCategoryBtn);
+            this.categoriesFlow.insert_child_at_index(categoryCard, index);
         } else {
-            this.tiledPanel.add_actor(categoryCard);
+            this.categoriesFlow.add_actor(categoryCard);
         }
 
         return categoryGrid;
@@ -143,17 +167,19 @@ View.prototype = {
             reactive: true,
             can_focus: true,
             track_hover: true,
-            width: 240,
-            height: 100,
-            x_align: St.Align.MIDDLE,
-            y_align: St.Align.MIDDLE
+            //width: 240,
+            //height: 100,
+            x_expand: false,
+            y_expand: false,
+            x_align: Clutter.ActorAlign.START,
+            y_align: Clutter.ActorAlign.START
         });
 
         this.addCategoryBtn.set_child(new St.Label({ text: "+ Nueva Categoría" }));
 
         this.dndHandler.setupNewCategoryDropTarget(this.addCategoryBtn);
 
-        this.tiledPanel.add_actor(this.addCategoryBtn);
-        this.addCategoryBtn.show();
+        this.categoriesFlow.add_actor(this.addCategoryBtn);
+        
     }
 };

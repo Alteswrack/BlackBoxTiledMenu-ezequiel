@@ -62,8 +62,8 @@ BlackBoxMenu.prototype = {
     },
 
     _loadDefaultTiles: function() {
-        this.view._addTileItem("Calculator", "accessories-calculator", "gnome-calculator", "Oficina");
-        this.view._addTileItem("RedNotebook", "rednotebook", "rednotebook", "Oficina");
+        this.view._addTileItem("Calculator", "accessories-calculator", "gnome-calculator", "Office");
+        this.view._addTileItem("RedNotebook", "rednotebook", "rednotebook", "Office");
         this.view._addTileItem("Vivaldi", "vivaldi", "vivaldi", "Internet");
         this.view._addTileItem("Files", "nemo", "nemo", "Internet");
     }
