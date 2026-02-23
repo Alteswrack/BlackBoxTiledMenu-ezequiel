@@ -39,22 +39,41 @@ var ResizeManager = class ResizeManager {
     _onResizing(width, height) {
         let snap = this._calculateSnap(width);
 
-        // 1. Redimensionamiento visual SUAVE: el menú sigue al ratón exactamente
-        this.menu.actor.set_width(width);
-        this.menu.actor.set_height(height);
+        // Definir mínimos físicos
+        const baseW = 102;
+        const categoryW = 290;
+        const scrollbarW = 30;
+        const minWidth = baseW + categoryW + scrollbarW; // Ancho exacto para 1 columna
+        const minHeight = 400; // Alto mínimo solicitado
+
+        // Filtrar las coordenadas del mouse contra los topes
+        let safeWidth = Math.max(width, minWidth);
+        let safeHeight = Math.max(height, minHeight);
+
+        // 1. Redimensionamiento visual SUAVE pero respetando los topes
+        this.menu.actor.set_width(safeWidth);
+        this.menu.actor.set_height(safeHeight);
 
         // 2. Las columnas se reacomodan dinámicamente por detrás
         if (this.applet.view) {
             this.applet.view.updateCategoryColumns(snap.columns);
         }
 
-        // 3. Cuando el usuario SUELTA el clic, aplicamos el tamaño estricto sin espacio sobrante
+        // 3. Cuando el usuario SUELTA el clic, aplicamos el tamaño estricto
         if (!this._resizer.resizingInProgress) {
             this.menu.actor.set_width(snap.snappedWidth);
+            this.menu.actor.set_height(safeHeight); // Forzar el alto seguro aquí también
             
-            // Guardamos las variables
+            // Guardar variables respetando la escala
             this.applet[this.propW] = snap.snappedWidth / global.ui_scale;
-            this.applet[this.propH] = height / global.ui_scale;
+            this.applet[this.propH] = safeHeight / global.ui_scale;
+
+            // Forzar el redibujado nativo
+            if (this.applet.view) {
+                this.applet.view.categoriesGrid.queue_relayout();
+                this.applet.view.scrollView.queue_relayout();
+                this.applet.view._refreshGrid(this.applet.view.categoriesGrid, snap.columns);
+            }
         }
     }
 
