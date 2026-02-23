@@ -13,6 +13,7 @@ View.prototype = {
         this.menu = menu;
         this.saveCallback = saveCallback;
         this.dndHandler = new DNDHandler.DNDHandler(this);
+        this._currentColumns = 1; // Valor inicial por defecto
 
         this.mainMenuLayout = new St.BoxLayout({ vertical: false, style_class: "menu-content-box" });
         this.sidePanel = new St.BoxLayout({ vertical: true, style_class: 'menu-sidebar-box' });
@@ -47,8 +48,8 @@ View.prototype = {
             y_align: Clutter.ActorAlign.START
         });
         
-        // 2 Columnas para las categorías
-        this._patchGrid(this.categoriesGrid, 2);
+        // Las columnas de la grilla principal ahora son dinámicas
+        this._patchGrid(this.categoriesGrid, () => this._currentColumns);
 
         this.categories = {};
         this.tiledPanel.add_actor(this.categoriesGrid);
@@ -63,6 +64,12 @@ View.prototype = {
         this.sidePanel.add_actor(iconButton);
     },
 
+    updateCategoryColumns: function(newColumnCount) {
+        if (this._currentColumns === newColumnCount) return;
+        this._currentColumns = newColumnCount;
+        this._refreshGrid(this.categoriesGrid, newColumnCount);
+    },
+
     _refreshGrid: function(gridWidget, columns) {
         let layout = gridWidget.get_layout_manager();
         let children = gridWidget.get_children();
@@ -73,8 +80,12 @@ View.prototype = {
         }
     },
 
-    _patchGrid: function(grid, cols) {
-        let refresh = () => this._refreshGrid(grid, cols);
+    _patchGrid: function(grid, colsParam) {
+        // colsParam puede ser un número fijo o una función que retorna el número
+        let refresh = () => {
+            let cols = typeof colsParam === 'function' ? colsParam() : colsParam;
+            this._refreshGrid(grid, cols);
+        };
 
         let origInsert = grid.insert_child_at_index;
         grid.insert_child_at_index = function(actor, index) {
@@ -182,7 +193,7 @@ View.prototype = {
             y_expand: true
         });
 
-        // 3 Columnas para los tiles dentro de la categoría
+        // 3 Columnas fijas para los tiles dentro de la categoría
         this._patchGrid(categoryGrid, 3);
         this.dndHandler.setupCategoryDropTarget(categoryGrid);
 

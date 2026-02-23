@@ -1,6 +1,6 @@
 .menu-sidebar-box {
-    background-color: #00000000;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: #000000e8;
+    border-right: 1px solid rgba(255, 255, 255, 0.927);
     padding: 10px;
     width: 60px;
     spacing: 10px;
@@ -20,7 +20,7 @@
 
 .tile-button {
     background-gradient-direction: vertical;
-    background-gradient-start: #21262d;
+    background-gradient-start: #353d47;
     background-gradient-end: #1C1C20;
     
     border-radius: 12px;
@@ -28,24 +28,28 @@
     padding: 10px;
     width: 80px;
     height: 90px;
-    box-shadow: -10px 10px 8px 0px rgba(0, 0, 0, 0.6);
+    box-shadow: -10px 10px 8px 0px rgba(20, 20, 20, 0.6);
 }
 
 .tile-button:hover {
-    box-shadow: -15px 10px 15px 0px rgba(0, 0, 0, 0.7);
+    /* box-shadow: -15px 10px 15px 0px rgba(0, 0, 0, 0.7); */
+    background-gradient-direction: vertical;
+    background-gradient-start: #4c535b;
+    background-gradient-end: #1C1C20;
+    
 }
 
 .tile-icon {
     icon-size: 48px;
     margin-bottom: 5px;
-    icon-shadow: rgba(0, 0, 0, 0.8) -10px 10px 5px;
+    icon-shadow: rgba(21, 21, 21, 0.8) -10px 10px 5px;
 }
 
 .tile-label {
     font-weight: bold;
     font-size: 12px;
     text-align: center;
-    text-shadow: rgba(0, 0, 0, 0.8) -7px 7px 2px;
+    text-shadow: rgba(21, 21, 21, 0.8) -7px 7px 2px;
 }
 
 .drop-zone-hover {
@@ -54,7 +58,7 @@
 }
 
 .category-wrapper {
-    width: 270px;
+    width: 310px;
     height: 340px;
     background-color: rgba(255, 255, 255, 0.02);
     border-radius: 12px;
