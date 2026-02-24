@@ -92,6 +92,20 @@ View.prototype = {
 
         let iconButton = new St.Button({ style_class: 'sidebar-icon', child: new St.Icon({ icon_name: 'system-shutdown-symbolic', icon_type: St.IconType.SYMBOLIC }) });
         this.sidePanel.add_actor(iconButton);
+        
+        // Escuchar cuando el menú se abre o se cierra
+        this.menu.connect('open-state-changed', (menu, isOpen) => {
+            if (isOpen) {
+                // Pequeño retraso para asegurar que el menú ya está renderizado en pantalla
+                Mainloop.timeout_add(50, () => {
+                    global.stage.set_key_focus(this.searchEntry.clutter_text);
+                    return false; // Retornar false detiene el loop
+                });
+            } else {
+                // Limpiar la barra al cerrar el menú
+                this.searchEntry.set_text("");
+            }
+        });
     },
 
     updateCategoryColumns: function(newColumnCount) {
