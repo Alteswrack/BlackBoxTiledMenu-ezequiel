@@ -2,6 +2,8 @@ const St = imports.gi.St;
 const Util = imports.misc.util;
 const DND = imports.ui.dnd;
 const Clutter = imports.gi.Clutter;
+const Mainloop = imports.mainloop;
+const Search = imports.search;
 const DNDHandler = imports.dndHandler;
 
 var View = function(menu, saveCallback) {
@@ -14,8 +16,10 @@ View.prototype = {
         this.saveCallback = saveCallback;
         this.dndHandler = new DNDHandler.DNDHandler(this);
         this._currentColumns = 1; // Valor inicial por defecto
+        this._searchTimeoutId = 0;
 
         this.mainMenuLayout = new St.BoxLayout({ vertical: false, style_class: "menu-content-box" });
+        this.topPanel = new St.BoxLayout({ vertical: false, style_class: 'menu-topbar-box' });
         this.sidePanel = new St.BoxLayout({ vertical: true, style_class: 'menu-sidebar-box' });
 
         this.scrollView = new St.ScrollView({
@@ -34,7 +38,32 @@ View.prototype = {
             x_align: Clutter.ActorAlign.START, 
             y_align: Clutter.ActorAlign.START
         });
+
+        // Buscador y Lista
+        this.appSearch = new Search.AppSearch();
+
+        this.searchEntry = new St.Entry({
+            name: 'searchEntry',
+            hint_text: '',
+            track_hover: true,
+            can_focus: true,
+            style_class: 'search-entry'
+        });
+
+        this.searchList = new St.BoxLayout({
+            vertical: true,
+            reactive: true,
+            x_expand: true,
+            y_expand: true,
+            visible: false
+        });
         
+        this.searchEntry.clutter_text.connect('text-changed', () => this._onSearchTextChanged());
+
+        this.topPanel.add_actor(this.searchEntry);
+        this.tiledPanel.add_actor(this.searchList);
+
+        // Categories
         let mainGridLayout = new Clutter.GridLayout();
         mainGridLayout.set_column_spacing(15);
         mainGridLayout.set_row_spacing(15);
@@ -56,6 +85,7 @@ View.prototype = {
         this.scrollView.add_actor(this.tiledPanel);
         this.mainMenuLayout.add_actor(this.sidePanel);
         this.mainMenuLayout.add(this.scrollView, { expand: true, x_fill: true, y_fill: true });
+        this.menu.box.add_actor(this.topPanel);
         this.menu.box.add_actor(this.mainMenuLayout);
 
         this._createAddCategoryZone();
@@ -225,5 +255,78 @@ View.prototype = {
         this.addCategoryBtn.set_child(new St.Label({ text: "+ Nueva Categoría" }));
         this.dndHandler.setupNewCategoryDropTarget(this.addCategoryBtn);
         this.categoriesGrid.add_actor(this.addCategoryBtn);
+    },
+
+    _onSearchTextChanged: function() {
+        if (this._searchTimeoutId) {
+            Mainloop.source_remove(this._searchTimeoutId);
+        }
+
+        this._searchTimeoutId = Mainloop.timeout_add(150, () => {
+            this._executeSearch();
+            this._searchTimeoutId = 0;
+            return false; 
+        });
+    },
+
+    _executeSearch: function() {
+        let query = this.searchEntry.get_text();
+
+        if (query.trim() === "") {
+            this.searchList.hide();
+            this.searchList.destroy_all_children();
+            this.categoriesGrid.show();
+            return;
+        }
+
+        this.categoriesGrid.hide();
+        this.searchList.show();
+        this.searchList.destroy_all_children();
+
+        let results = this.appSearch.getResults(query);
+
+        results.forEach(app => {
+            let button = this._createSearchListItem(app);
+            this.searchList.add_actor(button);
+        });
+    },
+
+    _createSearchListItem: function(app) {
+        let button = new St.Button({
+            style_class: 'search-list-item',
+            reactive: true,
+            can_focus: true,
+            track_hover: true,
+            x_fill: true,
+            x_expand: true
+        });
+
+        let box = new St.BoxLayout({ 
+            vertical: false, 
+            style_class: 'search-list-item-box' 
+        });
+        
+        let icon = app.create_icon_texture(24); 
+        if (!icon) {
+            icon = new St.Icon({ icon_name: 'application-default-icon', icon_type: St.IconType.FULLCOLOR, icon_size: 24 });
+        }
+        
+        let labelWidget = new St.Label({ 
+            text: app.get_name(), 
+            y_align: Clutter.ActorAlign.CENTER 
+        });
+
+        box.add_actor(icon);
+        box.add_actor(labelWidget);
+        button.set_child(box);
+
+        button.connect('clicked', () => {
+            app.open_new_window(-1);
+            this.searchEntry.set_text("");
+            this.menu.close();
+        });
+
+        return button;
     }
+
 };
