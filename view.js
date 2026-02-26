@@ -5,6 +5,7 @@ const Clutter = imports.gi.Clutter;
 const Mainloop = imports.mainloop;
 const Search = imports.search;
 const DNDHandler = imports.dndHandler;
+const ContextMenu = imports.contextMenu;
 
 var View = function(menu, saveCallback) {
     this._init(menu, saveCallback);
@@ -59,6 +60,7 @@ View.prototype = {
             y_expand: true,
             visible: false
         });
+        this.searchListContextMenuManager = new PopupMenu.PopupMenuManager(this.searchList);
         
         this.searchEntry.clutter_text.connect('text-changed', () => this._onSearchTextChanged());
 
@@ -351,6 +353,12 @@ View.prototype = {
             this.menu.close();
         });
 
+        // Crear y asociar el menú contextual, asegurando su destrucción
+        let contextMenu = new ContextMenu.TileContextMenu(this, button, app, this.searchListContextMenuManager);
+        button.connect('destroy', () => {
+            contextMenu.destroy();
+        });
+        
         return button;
     }
 
