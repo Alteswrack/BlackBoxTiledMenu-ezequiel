@@ -5,7 +5,6 @@ const Clutter = imports.gi.Clutter;
 const Mainloop = imports.mainloop;
 const Search = imports.search;
 const DNDHandler = imports.dndHandler;
-const ContextMenu = imports.contextMenu;
 
 var View = function(menu, saveCallback) {
     this._init(menu, saveCallback);
@@ -19,9 +18,9 @@ View.prototype = {
         this._currentColumns = 1; // Valor inicial por defecto
         this._searchTimeoutId = 0;
 
-        this.mainMenuLayout = new St.BoxLayout({ vertical: false, style_class: "menu-content-box" });
-        this.topPanel = new St.BoxLayout({ vertical: false, style_class: 'menu-topbar-box' });
-        this.sidePanel = new St.BoxLayout({ vertical: true, style_class: 'menu-sidebar-box' });
+        this.topPanel = new St.BoxLayout({ vertical: false, style_class: 'menu-topbar-box'});
+        this.mainMenuLayout = new St.BoxLayout({ vertical: false, style_class: "menu-content-box", y_expand: true});
+        this.sidePanel = new St.BoxLayout({ vertical: true, style_class: 'menu-sidebar-box', y_expand: true});
 
         this.scrollView = new St.ScrollView({
             x_expand: true,
@@ -48,7 +47,9 @@ View.prototype = {
             hint_text: '',
             track_hover: true,
             can_focus: true,
-            style_class: 'search-entry'
+            style_class: 'search-entry',
+            y_expand: true,
+            x_expand: true,
         });
 
         this.searchList = new St.BoxLayout({
@@ -58,7 +59,6 @@ View.prototype = {
             y_expand: true,
             visible: false
         });
-        this.searchListContextMenuManager = new PopupMenu.PopupMenuManager(this.searchList);
         
         this.searchEntry.clutter_text.connect('text-changed', () => this._onSearchTextChanged());
 
@@ -85,7 +85,7 @@ View.prototype = {
         this.categories = {};
         this.tiledPanel.add_actor(this.categoriesGrid);
         this.scrollView.add_actor(this.tiledPanel);
-        this.mainMenuLayout.add_actor(this.sidePanel);
+        this.mainMenuLayout.add_actor(this.sidePanel, { expand: true, x_fill: false, y_fill: true });
         this.mainMenuLayout.add(this.scrollView, { expand: true, x_fill: true, y_fill: true });
         this.menu.box.add_actor(this.topPanel);
         this.menu.box.add_actor(this.mainMenuLayout);
@@ -305,6 +305,14 @@ View.prototype = {
             let button = this._createSearchListItem(app);
             this.searchList.add_actor(button);
         });
+
+        // Enfocar el primer resultado si existe
+        if (results.length > 0) {
+            let firstResult = this.searchList.get_first_child();
+            if (firstResult) {
+                firstResult.grab_key_focus();
+            }
+        }
     },
 
     _createSearchListItem: function(app) {
@@ -335,6 +343,7 @@ View.prototype = {
         box.add_actor(icon);
         box.add_actor(labelWidget);
         button.set_child(box);
+        
 
         button.connect('clicked', () => {
             app.open_new_window(-1);
@@ -342,12 +351,6 @@ View.prototype = {
             this.menu.close();
         });
 
-        // Crear y asociar el menú contextual, asegurando su destrucción
-        let contextMenu = new ContextMenu.TileContextMenu(this, button, app, this.searchListContextMenuManager);
-        button.connect('destroy', () => {
-            contextMenu.destroy();
-        });
-        
         return button;
     }
 
