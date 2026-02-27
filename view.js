@@ -5,6 +5,7 @@ const Clutter = imports.gi.Clutter;
 const Mainloop = imports.mainloop;
 const Search = imports.search;
 const DNDHandler = imports.dndHandler;
+const ContextMenu = imports.contextMenu;
 
 var View = function(menu, saveCallback) {
     this._init(menu, saveCallback);
@@ -62,6 +63,33 @@ View.prototype = {
         
         this.searchEntry.clutter_text.connect('text-changed', () => this._onSearchTextChanged());
 
+        // NUEVO: Escuchar teclas especiales en la barra de búsqueda
+        this.searchEntry.clutter_text.connect('key-press-event', (actor, event) => {
+            let symbol = event.get_key_symbol();
+
+            // Si presiona Enter o el Enter del pad numérico
+            if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter) {
+                let firstChild = this.searchList.get_first_child();
+                
+                // Si la lista es visible y tiene un primer elemento con una app asignada
+                if (this.searchList.visible && firstChild && firstChild._app) {
+                    firstChild._app.open_new_window(-1); // Ejecutar la app
+                    this.searchEntry.set_text("");
+                    this.menu.close();
+                    return Clutter.EVENT_STOP; // Detener propagación
+                }
+            } 
+            // Si presiona Flecha Abajo, enviamos el foco a la lista de resultados
+            else if (symbol === Clutter.KEY_Down) {
+                let firstChild = this.searchList.get_first_child();
+                if (this.searchList.visible && firstChild) {
+                    firstChild.grab_key_focus();
+                    return Clutter.EVENT_STOP;
+                }
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+
         this.topPanel.add_actor(this.searchEntry);
         this.tiledPanel.add_actor(this.searchList);
 
@@ -94,6 +122,10 @@ View.prototype = {
 
         let iconButton = new St.Button({ style_class: 'sidebar-icon', child: new St.Icon({ icon_name: 'system-shutdown-symbolic', icon_type: St.IconType.SYMBOLIC }) });
         this.sidePanel.add_actor(iconButton);
+        
+        // 1. Instanciar un único gestor global
+        this.contextMenuManager = new ContextMenu.MenuManager(this);
+
         
         // Escuchar cuando el menú se abre o se cierra
         this.menu.connect('open-state-changed', (menu, isOpen) => {
@@ -165,7 +197,7 @@ View.prototype = {
             can_focus: true,
             track_hover: true            
         });
-
+        
         let box = new St.BoxLayout({ 
             vertical: true, 
             x_align: St.Align.MIDDLE,
@@ -178,9 +210,19 @@ View.prototype = {
         box.add_actor(labelWidget);
         button.set_child(box);
 
-        button.connect('clicked', () => {
-            Util.spawnCommandLine(command);
-            this.menu.close();
+        // 1. OBLIGAMOS al botón a tragarse el click derecho y el izquierdo (Evita que el menú principal colapse)
+        button.set_button_mask(St.ButtonMask.ONE | St.ButtonMask.THREE);
+
+        // 2. Manejamos ambos clicks desde el evento nativo unificado
+        button.connect('clicked', (actor, btn) => {
+            if (btn === 3) {
+                // Click Derecho: Llama al Gestor Global pasándole el botón
+                this.contextMenuManager.open(button);
+            } else {
+                // Click Izquierdo: Acción normal (en _addTileItem usás Util.spawnCommandLine(command), en el buscador app.open_new_window)
+                Util.spawnCommandLine(command); // (Ajustá esta línea según si estás en el buscador o en la grilla)
+                this.menu.close();
+            }
         });
 
         let targetGrid = this._getOrCreateCategory(categoryName);
@@ -274,15 +316,8 @@ View.prototype = {
     },
 
     _onSearchTextChanged: function() {
-        if (this._searchTimeoutId) {
-            Mainloop.source_remove(this._searchTimeoutId);
-        }
-
-        this._searchTimeoutId = Mainloop.timeout_add(150, () => {
-            this._executeSearch();
-            this._searchTimeoutId = 0;
-            return false; 
-        });
+        // Ejecución inmediata, sin timeouts rompiendo el ciclo
+        this._executeSearch();
     },
 
     _executeSearch: function() {
@@ -305,14 +340,6 @@ View.prototype = {
             let button = this._createSearchListItem(app);
             this.searchList.add_actor(button);
         });
-
-        // Enfocar el primer resultado si existe
-        if (results.length > 0) {
-            let firstResult = this.searchList.get_first_child();
-            if (firstResult) {
-                firstResult.grab_key_focus();
-            }
-        }
     },
 
     _createSearchListItem: function(app) {
@@ -325,31 +352,34 @@ View.prototype = {
             x_expand: true
         });
 
-        let box = new St.BoxLayout({ 
-            vertical: false, 
-            style_class: 'search-list-item-box' 
-        });
+        let box = new St.BoxLayout({ vertical: false, style_class: 'search-list-item-box' });
         
         let icon = app.create_icon_texture(24); 
-        if (!icon) {
-            icon = new St.Icon({ icon_name: 'application-default-icon', icon_type: St.IconType.FULLCOLOR, icon_size: 24 });
-        }
+        if (!icon) icon = new St.Icon({ icon_name: 'application-default-icon', icon_type: St.IconType.FULLCOLOR, icon_size: 24 });
         
-        let labelWidget = new St.Label({ 
-            text: app.get_name(), 
-            y_align: Clutter.ActorAlign.CENTER 
-        });
+        let labelWidget = new St.Label({ text: app.get_name(), y_align: Clutter.ActorAlign.CENTER });
 
         box.add_actor(icon);
         box.add_actor(labelWidget);
         button.set_child(box);
         
+        // 1. OBLIGAMOS al botón a tragarse el click derecho y el izquierdo (Evita que el menú principal colapse)
+        button.set_button_mask(St.ButtonMask.ONE | St.ButtonMask.THREE);
 
-        button.connect('clicked', () => {
-            app.open_new_window(-1);
-            this.searchEntry.set_text("");
-            this.menu.close();
+        // 2. Manejamos ambos clicks desde el evento nativo unificado
+        button.connect('clicked', (actor, btn) => {
+            if (btn === 3) {
+                // Click Derecho: Llama al Gestor Global pasándole el botón
+                this.contextMenuManager.open(button);
+            } else {
+                // Click Izquierdo: Acción normal (en _addTileItem usás Util.spawnCommandLine(command), en el buscador app.open_new_window)
+                Util.spawnCommandLine(command); // (Ajustá esta línea según si estás en el buscador o en la grilla)
+                this.menu.close();
+            }
         });
+
+        // CRÍTICO: Guardamos la app para que el gestor global la detecte
+        button._app = app;
 
         return button;
     }

@@ -1,139 +1,158 @@
-const PopupMenu = imports.ui.popupMenu;
-const Util = imports.misc.util;
+const St = imports.gi.St;
 const Clutter = imports.gi.Clutter;
+const Util = imports.misc.util;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
-const Main = imports.ui.main; // Añadido para inyectar en pantalla
-const St = imports.gi.St;     // Añadido para la máscara del botón
+const Main = imports.ui.main;
 
-var TileContextMenu = class TileContextMenu {
-    constructor(view, button, app, manager = null) {
+var MenuManager = class MenuManager {
+    constructor(view) {
         this.view = view;
-        this.button = button;
-        this.app = app;
+        this.activeMenuBox = null;
+        this._stageEventId = 0;
+        this._menuEventId = 0;
+    }
 
-        // 1. Instanciar el menú nativo
-        this.menu = new PopupMenu.PopupMenu(button, 0.0, Clutter.Orientation.BOTTOM, 0);
+    open(button) {
+        this.close(); // Destruir cualquier menú previo
 
-        // 2. Inyectarlo obligatoriamente en la capa visual de Cinnamon
-        Main.uiGroup.add_actor(this.menu.actor);
-        this.menu.actor.hide(); // Nos aseguramos de que esté oculto al inicio
+        let app = button._app;
+        let tileData = button._tileData;
 
-        // 3. Crear un administrador local para este menú flotante
-        if (manager) {
-            this.menuManager = manager; // Usar el gestor compartido (para la lista de búsqueda)
-        } else {
-            this.menuManager = new PopupMenu.PopupMenuManager(this.button); // Crear uno nuevo para un ítem aislado
+        if (!app && !tileData) return;
+
+        // 1. Crear el Falso Menú
+        this.activeMenuBox = new St.BoxLayout({
+            vertical: true,
+            reactive: true,
+            style: 'background-color: #2b2b2b; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px; box-shadow: 0px 4px 8px rgba(0,0,0,0.8);'
+        });
+
+        if (app) {
+            this._buildAppMenu(app);
+        } else if (tileData) {
+            this._buildTileMenu(button);
         }
-        this.menuManager.addMenu(this.menu); // Registrar el menú en el gestor
 
-        this._buildMenu();
+        Main.uiGroup.add_actor(this.activeMenuBox);
 
-        // 4. Modificar la máscara del botón para que escuche el Click Izquierdo (ONE) y Derecho (THREE)
-        this.button.set_button_mask(St.ButtonMask.ONE | St.ButtonMask.THREE);
+        // 2. Posicionamiento geométrico
+        let [x, y] = button.get_transformed_position();
+        let height = button.get_height();
+        this.activeMenuBox.set_position(x + 10, y + height - 5); 
 
-        // 5. Interceptar el evento
-        this.button.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === 3) {
-                this.menu.toggle();
-                return Clutter.EVENT_STOP; // Evita que el click derecho dispare el click izquierdo
+        // 3. Escudo Inteligente: Escanea el árbol de padres para saber si clickeaste adentro
+        this._stageEventId = global.stage.connect('button-press-event', (actor, evt) => {
+            let target = evt.get_source();
+            let isInside = false;
+            
+            // Subimos por el árbol: ¿Es el texto? ¿Es el botón? ¿Es la caja?
+            let parent = target;
+            while (parent) {
+                if (parent === this.activeMenuBox) {
+                    isInside = true;
+                    break;
+                }
+                parent = parent.get_parent();
             }
+
+            // Si llegamos al fondo y no era la caja, cerramos el menú.
+            if (!isInside) {
+                this.close();
+            }
+            
             return Clutter.EVENT_PROPAGATE;
         });
-    }
-    
-    _buildMenu() {
-        let pinItem = new PopupMenu.PopupMenuItem("📌 Pin to Menu");
-        pinItem.connect('activate', () => this._pinToMenu());
-        this.menu.addMenuItem(pinItem);
 
-        let panelItem = new PopupMenu.PopupMenuItem("⚙️ Add to Panel");
-        panelItem.connect('activate', () => this._addToPanel());
-        this.menu.addMenuItem(panelItem);
-
-        let desktopItem = new PopupMenu.PopupMenuItem("🖥️ Add to Desktop");
-        desktopItem.connect('activate', () => this._addToDesktop());
-        this.menu.addMenuItem(desktopItem);
-
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-        let propsItem = new PopupMenu.PopupMenuItem("📄 Properties");
-        propsItem.connect('activate', () => this._showProperties());
-        this.menu.addMenuItem(propsItem);
+        // 4. Destruir si el menú principal de Mint se cierra
+        this._menuEventId = this.view.menu.connect('open-state-changed', (menu, isOpen) => {
+            if (!isOpen) this.close();
+        });
     }
 
-    _pinToMenu() {
-        let name = this.app.get_name();
+    _createItem(label, callback) {
+        let btn = new St.Button({
+            reactive: true,
+            x_fill: true,
+            style: 'padding: 8px 12px; border-radius: 4px; color: #dddddd;'
+        });
         
-        // Limpiamos el comando de argumentos como %U o %F que rompen la ejecución
-        let cmdRaw = this.app.get_app_info().get_commandline() || this.app.get_id();
-        let cmd = cmdRaw.replace(/%[a-zA-Z]/g, '').trim();
-        
-        let iconObj = this.app.get_app_info().get_icon();
-        let iconName = iconObj ? iconObj.to_string() : 'application-default-icon';
+        btn.set_child(new St.Label({ text: label }));
 
-        // Usa tu método existente para crear el Tile
-        this.view._addTileItem(name, iconName, cmd, "New Category");
-        this.view._saveLayout();
-        
-        this._closeMenus();
+        btn.connect('enter-event', () => btn.set_style('padding: 8px 12px; border-radius: 4px; color: #ffffff; background-color: rgba(255,255,255,0.1);'));
+        btn.connect('leave-event', () => btn.set_style('padding: 8px 12px; border-radius: 4px; color: #dddddd; background-color: transparent;'));
+
+        // Evento limpio
+        btn.connect('clicked', () => callback());
+
+        return btn;
     }
 
-    _addToPanel() {
-        let id = this.app.get_id(); // Ej: "firefox.desktop"
-        let settings = new Gio.Settings({ schema_id: 'org.cinnamon' });
-        
-        // Lee los lanzadores actuales del dconf nativo
-        let launchers = settings.get_strv('panel-launchers');
-        
-        if (!launchers.includes(id)) {
-            launchers.push(id);
-            // Sobreescribe la configuración, Cinnamon actualiza el panel al instante
-            settings.set_strv('panel-launchers', launchers);
+    _buildAppMenu(app) {
+        let pinBtn = this._createItem("📌 Pin to Menu", () => {
+            let cmdRaw = app.get_app_info().get_commandline() || app.get_id();
+            let cmd = cmdRaw.replace(/%[a-zA-Z]/g, '').trim();
+            let iconObj = app.get_app_info().get_icon();
+            let iconName = iconObj ? iconObj.to_string() : 'application-default-icon';
+
+            this.view._addTileItem(app.get_name(), iconName, cmd, "New Category");
+            this.view._saveLayout();
+            this._closeAll();
+        });
+        this.activeMenuBox.add_actor(pinBtn);
+
+        let panelBtn = this._createItem("⚙️ Add to Panel", () => {
+            let id = app.get_id();
+            let settings = new Gio.Settings({ schema_id: 'org.cinnamon' });
+            let launchers = settings.get_strv('panel-launchers');
+            if (!launchers.includes(id)) {
+                launchers.push(id);
+                settings.set_strv('panel-launchers', launchers);
+            }
+            this._closeAll();
+        });
+        this.activeMenuBox.add_actor(panelBtn);
+
+        let desktopBtn = this._createItem("🖥️ Add to Desktop", () => {
+            let desktopFile = app.get_app_info().get_filename();
+            if (desktopFile) {
+                let desktopDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DESKTOP);
+                Util.spawnCommandLine(`cp "${desktopFile}" "${desktopDir}/"`);
+                Util.spawnCommandLine(`chmod +x "${desktopDir}/${desktopFile.split('/').pop()}"`);
+            }
+            this._closeAll();
+        });
+        this.activeMenuBox.add_actor(desktopBtn);
+    }
+
+    _buildTileMenu(button) {
+        let unpinBtn = this._createItem("❌ Unpin from Menu", () => {
+            button.destroy();
+            this.view._saveLayout();
+            this.close(); // Cerramos solo el menú contextual
+        });
+        this.activeMenuBox.add_actor(unpinBtn);
+    }
+
+    _closeAll() {
+        this.close();
+        if (this.view && this.view.menu) {
+            this.view.menu.close();
         }
-        this._closeMenus();
     }
 
-    _addToDesktop() {
-        let desktopFile = this.app.get_app_info().get_filename();
-        if (desktopFile) {
-            let desktopDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DESKTOP);
-            Util.spawnCommandLine(`cp "${desktopFile}" "${desktopDir}/"`);
-            
-            // Le da permisos de ejecución para que Mint no arroje alerta de seguridad al abrirlo
-            let basename = desktopFile.split('/').pop();
-            Util.spawnCommandLine(`chmod +x "${desktopDir}/${basename}"`);
+    close() {
+        if (this._stageEventId) {
+            global.stage.disconnect(this._stageEventId);
+            this._stageEventId = 0;
         }
-        this._closeMenus();
-    }
-
-    _showProperties() {
-        let desktopFile = this.app.get_app_info().get_filename();
-        if (desktopFile) {
-            // Abre el editor de propiedades nativo de Mint
-            Util.spawnCommandLine(`cinnamon-desktop-item-edit "${desktopFile}"`);
+        if (this._menuEventId && this.view && this.view.menu) {
+            this.view.menu.disconnect(this._menuEventId);
+            this._menuEventId = 0;
         }
-        this._closeMenus();
-    }
-
-    _closeMenus() {
-        this.menu.close();
-        this.view.menu.close();
-    }
-
-    destroy() {
-        // Es CRÍTICO desconectar todo para evitar fugas de memoria por referencias circulares.
-        // 1. El PopupMenuManager se registra a eventos globales y debe ser limpiado.
-        if (this.menuManager) {
-            this.menuManager.removeMenu(this.menu);
+        if (this.activeMenuBox) {
+            this.activeMenuBox.destroy();
+            this.activeMenuBox = null;
         }
-        // 2. Destruye el actor del menú, lo quita de Main.uiGroup y libera sus recursos.
-        if (this.menu && !this.menu.actor.is_finalized())
-            this.menu.destroy();
-
-        // 3. Rompemos las referencias para que el Garbage Collector pueda limpiar este objeto (TileContextMenu).
-        this.button = null;
-        this.view = null;
-        this.menuManager = null;
     }
 };
